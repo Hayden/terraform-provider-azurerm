@@ -217,10 +217,15 @@ A `cors_rule` block supports the following:
 
 ---
 
-A `identity` block supports the following:
+An `identity` block supports the following:
 
-* `type` - (Required) Specifies the type of Managed Service Identity that should be configured on this Cosmos Account. The only possible value is `SystemAssigned`.
+* `type` - (Required) Specifies the type of Managed Service Identity that should be configured on this Cosmos Account. The possible values are `None`, `SystemAssigned`, `SystemAssigned,UserAssigned` and `UserAssigned`.
 
+* `principal_id` - (Optional) The principal id of the system assigned identity. This property will only be provided for a system assigned identity.
+
+* `tenant_id` - (Optional) The tenant id of the system assigned identity. This property will only be provided for a system assigned identity.
+
+* `identity_ids` - (Optional) List of ARM resource IDs of the user assigned identities to be assigned to the account
 ---
 
 A `restore` block supports the following:

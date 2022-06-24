@@ -457,7 +457,7 @@ func resourceCosmosDbAccount() *pluginsdk.Resource {
 				},
 			},
 
-			"identity": commonschema.SystemAssignedIdentityOptional(),
+			"identity": commonschema.SystemOrUserAssignedIdentityOptional(),
 
 			"cors_rule": common.SchemaCorsRule(),
 
@@ -1546,21 +1546,33 @@ func flattenCosmosdbAccountBackup(input documentdb.BasicBackupPolicy) ([]interfa
 }
 
 func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdentity, error) {
-	expanded, err := identity.ExpandSystemAssigned(input)
+	expanded, err := identity.ExpandSystemAndUserAssignedList(input)
 	if err != nil {
 		return nil, err
 	}
 
-	return &documentdb.ManagedServiceIdentity{
-		Type: documentdb.ResourceIdentityType(string(expanded.Type)),
-	}, nil
+	out := documentdb.ManagedServiceIdentity{
+		Type:        documentdb.ResourceIdentityType(string(expanded.Type)),
+		PrincipalID: &expanded.PrincipalId,
+		TenantID:    &expanded.TenantId,
+	}
+
+	if out.Type == documentdb.ResourceIdentityTypeSystemAssignedUserAssigned || out.Type == documentdb.ResourceIdentityTypeUserAssigned {
+		out.UserAssignedIdentities = make(map[string]*documentdb.ManagedServiceIdentityUserAssignedIdentitiesValue)
+		for _, v := range expanded.IdentityIds {
+			out.UserAssignedIdentities[v] = &documentdb.ManagedServiceIdentityUserAssignedIdentitiesValue{
+				// intentionally empty
+			}
+		}
+	}
+	return &out, nil
 }
 
 func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) []interface{} {
-	var transform *identity.SystemAssigned
+	var transform *identity.SystemAndUserAssignedMap
 
 	if input != nil {
-		transform = &identity.SystemAssigned{
+		transform = &identity.SystemAndUserAssignedMap{
 			Type: identity.Type(string(input.Type)),
 		}
 		if input.PrincipalID != nil {
@@ -1571,7 +1583,12 @@ func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) []interfac
 		}
 	}
 
-	return identity.FlattenSystemAssigned(transform)
+	flat, err := identity.FlattenSystemAndUserAssignedMap(transform)
+	if err != nil {
+		// TODO Return error to caller
+		return make([]interface{}, 0)
+	}
+	return *flat
 }
 
 func expandCosmosDBAccountAnalyticalStorageConfiguration(input []interface{}) *documentdb.AnalyticalStorageConfiguration {

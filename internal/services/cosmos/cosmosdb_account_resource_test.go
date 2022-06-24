@@ -791,11 +791,9 @@ func TestAccCosmosDBAccount_identity(t *testing.T) {
 		},
 		data.ImportStep(),
 		{
-			Config: r.systemAssignedIdentity(data, documentdb.DefaultConsistencyLevelSession),
+			Config: r.userAssignedIdentity(data, documentdb.DefaultConsistencyLevelSession),
 			Check: acceptance.ComposeAggregateTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("identity.0.principal_id").Exists(),
-				check.That(data.ResourceName).Key("identity.0.tenant_id").Exists(),
 			),
 		},
 		data.ImportStep(),
@@ -2313,6 +2311,52 @@ resource "azurerm_cosmosdb_account" "test" {
   }
 }
 `, data.RandomInteger, data.Locations.Primary, data.RandomInteger, string(consistency))
+}
+
+func (CosmosDBAccountResource) userAssignedIdentity(data acceptance.TestData, consistency documentdb.DefaultConsistencyLevel) string {
+	return fmt.Sprintf(`
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "test" {
+  name     = "acctestRG-cosmos-%d"
+  location = "%s"
+}
+
+resource "azurerm_user_assigned_identity" "test" {
+  resource_group_name = azurerm_resource_group.test.name
+  location            = azurerm_resource_group.test.location
+
+  name = "acctest-uai-%d"
+}
+
+resource "azurerm_cosmosdb_account" "test" {
+  name                = "acctest-ca-%d"
+  location            = azurerm_resource_group.test.location
+  resource_group_name = azurerm_resource_group.test.name
+  offer_type          = "Standard"
+  kind                = "MongoDB"
+
+  capabilities {
+    name = "EnableMongo"
+  }
+
+  consistency_policy {
+    consistency_level = "%s"
+  }
+
+  geo_location {
+    location          = azurerm_resource_group.test.location
+    failover_priority = 0
+  }
+
+  identity {
+    type = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.test.id]
+  }
+}
+`, data.RandomInteger, data.Locations.Primary, data.RandomInteger, data.RandomInteger, string(consistency))
 }
 
 func (CosmosDBAccountResource) basicWithBackupPeriodic(data acceptance.TestData, kind documentdb.DatabaseAccountKind, consistency documentdb.DefaultConsistencyLevel) string {
