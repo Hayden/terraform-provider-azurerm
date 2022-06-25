@@ -791,9 +791,45 @@ func TestAccCosmosDBAccount_identity(t *testing.T) {
 		},
 		data.ImportStep(),
 		{
+			Config: r.systemAssignedIdentity(data, documentdb.DefaultConsistencyLevelSession),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("identity.0.principal_id").Exists(),
+				check.That(data.ResourceName).Key("identity.0.tenant_id").Exists(),
+			),
+		},
+		data.ImportStep(),
+		{
+			Config: r.basicMongoDB(data, documentdb.DefaultConsistencyLevelSession),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+	})
+}
+
+func TestAccCosmosDBAccount_identity_userAssignedIdentity(t *testing.T) {
+	data := acceptance.BuildTestData(t, "azurerm_cosmosdb_account", "test")
+	r := CosmosDBAccountResource{}
+
+	identityIdRegex := regexp.MustCompile("^/subscriptions/[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}/resourceGroups/acctestRG-cosmos-[0-9]+/providers/Microsoft.ManagedIdentity/userAssignedIdentities/acctest-uai-[0-9]+$")
+
+	data.ResourceTest(t, r, []acceptance.TestStep{
+		{
+			Config: r.basicMongoDB(data, documentdb.DefaultConsistencyLevelSession),
+			Check: acceptance.ComposeAggregateTestCheckFunc(
+				check.That(data.ResourceName).ExistsInAzure(r),
+			),
+		},
+		data.ImportStep(),
+		{
 			Config: r.userAssignedIdentity(data, documentdb.DefaultConsistencyLevelSession),
 			Check: acceptance.ComposeAggregateTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
+				check.That(data.ResourceName).Key("identity.0.principal_id").DoesNotExist(),
+				check.That(data.ResourceName).Key("identity.0.tenant_id").DoesNotExist(),
+				check.That(data.ResourceName).Key("identity.0.identity_ids.0").MatchesRegex(identityIdRegex),
 			),
 		},
 		data.ImportStep(),

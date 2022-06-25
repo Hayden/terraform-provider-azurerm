@@ -947,7 +947,13 @@ func resourceCosmosDbAccountRead(d *pluginsdk.ResourceData, meta interface{}) er
 	d.Set("kind", string(resp.Kind))
 
 	if v := resp.Identity; v != nil {
-		if err := d.Set("identity", flattenAccountIdentity(v)); err != nil {
+		flattenedIdentity, err := flattenAccountIdentity(v)
+
+		if err == nil {
+			err = d.Set("identity", flattenedIdentity)
+		}
+
+		if err != nil {
 			return fmt.Errorf("setting `identity`: %+v", err)
 		}
 	}
@@ -1568,7 +1574,7 @@ func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdent
 	return &out, nil
 }
 
-func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) []interface{} {
+func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) ([]interface{}, error) {
 	var transform *identity.SystemAndUserAssignedMap
 
 	if input != nil {
@@ -1585,10 +1591,9 @@ func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) []interfac
 
 	flat, err := identity.FlattenSystemAndUserAssignedMap(transform)
 	if err != nil {
-		// TODO Return error to caller
-		return make([]interface{}, 0)
+		return make([]interface{}, 0), nil
 	}
-	return *flat
+	return *flat, nil
 }
 
 func expandCosmosDBAccountAnalyticalStorageConfiguration(input []interface{}) *documentdb.AnalyticalStorageConfiguration {
