@@ -827,8 +827,8 @@ func TestAccCosmosDBAccount_identity_userAssignedIdentity(t *testing.T) {
 			Config: r.userAssignedIdentity(data, documentdb.DefaultConsistencyLevelSession),
 			Check: acceptance.ComposeAggregateTestCheckFunc(
 				check.That(data.ResourceName).ExistsInAzure(r),
-				check.That(data.ResourceName).Key("identity.0.principal_id").DoesNotExist(),
-				check.That(data.ResourceName).Key("identity.0.tenant_id").DoesNotExist(),
+				check.That(data.ResourceName).Key("identity.0.principal_id").IsEmpty(),
+				check.That(data.ResourceName).Key("identity.0.tenant_id").IsEmpty(),
 				check.That(data.ResourceName).Key("identity.0.identity_ids.0").MatchesRegex(identityIdRegex),
 			),
 		},

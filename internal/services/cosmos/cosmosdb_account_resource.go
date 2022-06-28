@@ -1552,7 +1552,7 @@ func flattenCosmosdbAccountBackup(input documentdb.BasicBackupPolicy) ([]interfa
 }
 
 func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdentity, error) {
-	expanded, err := identity.ExpandSystemAndUserAssignedList(input)
+	expanded, err := identity.ExpandSystemAndUserAssignedMap(input)
 	if err != nil {
 		return nil, err
 	}
@@ -1565,8 +1565,8 @@ func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdent
 
 	if out.Type == documentdb.ResourceIdentityTypeSystemAssignedUserAssigned || out.Type == documentdb.ResourceIdentityTypeUserAssigned {
 		out.UserAssignedIdentities = make(map[string]*documentdb.ManagedServiceIdentityUserAssignedIdentitiesValue)
-		for _, v := range expanded.IdentityIds {
-			out.UserAssignedIdentities[v] = &documentdb.ManagedServiceIdentityUserAssignedIdentitiesValue{
+		for k := range expanded.IdentityIds {
+			out.UserAssignedIdentities[k] = &documentdb.ManagedServiceIdentityUserAssignedIdentitiesValue{
 				// intentionally empty
 			}
 		}
@@ -1575,21 +1575,30 @@ func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdent
 }
 
 func flattenAccountIdentity(input *documentdb.ManagedServiceIdentity) ([]interface{}, error) {
-	var transform *identity.SystemAndUserAssignedMap
+	var transform *identity.SystemAndUserAssignedList
 
 	if input != nil {
-		transform = &identity.SystemAndUserAssignedMap{
+		transform = &identity.SystemAndUserAssignedList{
 			Type: identity.Type(string(input.Type)),
 		}
+
 		if input.PrincipalID != nil {
 			transform.PrincipalId = *input.PrincipalID
 		}
+
 		if input.TenantID != nil {
 			transform.TenantId = *input.TenantID
 		}
+
+		if input.UserAssignedIdentities != nil {
+			transform.IdentityIds = []string{}
+			for k := range input.UserAssignedIdentities {
+				transform.IdentityIds = append(transform.IdentityIds, k)
+			}
+		}
 	}
 
-	flat, err := identity.FlattenSystemAndUserAssignedMap(transform)
+	flat, err := identity.FlattenSystemAndUserAssignedList(transform)
 	if err != nil {
 		return make([]interface{}, 0), nil
 	}
