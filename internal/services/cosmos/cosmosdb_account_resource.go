@@ -457,7 +457,7 @@ func resourceCosmosDbAccount() *pluginsdk.Resource {
 				},
 			},
 
-			"identity": commonschema.SystemOrUserAssignedIdentityOptional(),
+			"identity": commonschema.SystemAssignedUserAssignedIdentityOptional(),
 
 			"cors_rule": common.SchemaCorsRule(),
 
@@ -1551,14 +1551,34 @@ func flattenCosmosdbAccountBackup(input documentdb.BasicBackupPolicy) ([]interfa
 	}
 }
 
+func identityTypeToResourceIdentityType(identityType identity.Type) (documentdb.ResourceIdentityType, error) {
+	switch identityType {
+	case identity.TypeNone:
+		return documentdb.ResourceIdentityTypeNone, nil
+	case identity.TypeSystemAssigned:
+		return documentdb.ResourceIdentityTypeSystemAssigned, nil
+	case identity.TypeSystemAssignedUserAssigned:
+		return documentdb.ResourceIdentityTypeSystemAssignedUserAssigned, nil
+	case identity.TypeUserAssigned:
+		return documentdb.ResourceIdentityTypeUserAssigned, nil
+	default:
+		return documentdb.ResourceIdentityTypeNone, fmt.Errorf("unknown identity type: %+v", identityType)
+	}
+}
+
 func expandAccountIdentity(input []interface{}) (*documentdb.ManagedServiceIdentity, error) {
 	expanded, err := identity.ExpandSystemAndUserAssignedMap(input)
 	if err != nil {
 		return nil, err
 	}
 
+	identityType, err := identityTypeToResourceIdentityType(expanded.Type)
+	if err != nil {
+		return nil, err
+	}
+
 	out := documentdb.ManagedServiceIdentity{
-		Type:        documentdb.ResourceIdentityType(string(expanded.Type)),
+		Type:        identityType,
 		PrincipalID: &expanded.PrincipalId,
 		TenantID:    &expanded.TenantId,
 	}
